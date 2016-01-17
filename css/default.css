@@ -1,0 +1,100 @@
+body {
+    font-family: 'DejaVu Sans', 'Bitstream Vera Sans', sans-serif;
+    margin: 0px auto 0px auto;
+    padding: 0px 2em 0px 2em;
+    max-width: 50em;
+    text-align: justify;
+}
+
+pre, tt, code { font-family: 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', mono; }
+
+@media ( max-width: 40em ), ( max-device-width: 40em ) {
+    body {
+        margin: 0px;
+        padding: 0px 1em 0px 1em;
+        max-width: none;
+    }
+}
+
+@media ( max-width: 28em ), ( max-device-width: 28em ) {
+    body {
+        margin: 0px;
+        padding: 0px 0.5em 0px 0.5em;
+    }
+}
+
+a:link, a:visited, a:active { text-decoration: none; color: darkred; }
+a:link:hover, a:visited:hover, a:active:hover { text-decoration: none; color: darkblue; }
+
+div#header {
+    border-bottom: 2px solid black;
+    margin-bottom: 30px;
+    padding: 12px 0px 12px 0px;
+    font-size: 115%;
+    font-weight: bold;
+}
+
+div#logo a {
+    color: inherit;
+    float: left;
+    text-decoration: none;
+}
+
+div#header #navigation {
+    text-align: right;
+}
+
+div#header #navigation a {
+    color: inherit;
+    margin-left: 1em;
+    text-decoration: none;
+    text-transform: uppercase;
+}
+
+div#footer {
+    border-top: solid 2px black;
+    color: #555;
+    font-size: 75%;
+    margin-top: 30px;
+    padding: 12px 0px 12px 0px;
+}
+
+div#footer #generated { text-align: right; }
+div#footer #feeds { float: left; }
+
+h1 {
+    font-size: 150%;
+}
+
+h2 {
+    font-size: 125%;
+}
+
+div.info {
+    color: #555;
+    font-size: 85%;
+    font-style: italic;
+}
+
+div.blogpost {
+    margin-bottom: 2em;
+}
+
+div.shortpostlist li {
+    margin: 1.5ex 0ex;
+}
+
+div.shortpostlist li p {
+    margin: 0.5ex 0ex;
+}
+
+div#gallery {
+    text-align: left;
+}
+
+div#gallery a {
+    display: inline-block;
+    width: 250px;
+    margin: 4px;
+    text-align: center;
+}
