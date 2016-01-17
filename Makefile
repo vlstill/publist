@@ -5,7 +5,7 @@ all : build test
 build : site
 	./site build
 
-site : site.hs publist.cabal .cabal-sandbox
+site : site.hs PubList.hs publist.cabal .cabal-sandbox
 	cabal install --force-reinstalls
 	touch site
 
