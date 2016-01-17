@@ -1,0 +1,26 @@
+dist
+cabal-dev
+*.o
+*.hi
+*.chi
+*.chs.h
+*.dyn_o
+*.dyn_hi
+.virtualenv
+.hpc
+.hsenv
+.cabal-sandbox/
+cabal.sandbox.config
+*.prof
+*.aux
+*.hp
+
+# vim
+*~
+*.swp
+*.swo
+
+# hakyll
+_site
+_cache
+bib
