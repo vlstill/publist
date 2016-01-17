@@ -13,11 +13,14 @@ import Text.Read ( readMaybe )
 
 import Data.IxSet ( ixGen, ixFun, ixSet, Indexable, Proxy ( Proxy ), IxSet )
 import qualified Data.IxSet as Ix ( empty, fromList, union )
+import Data.Set ( Set )
+import qualified Data.Set as Set ( empty, fromList, union )
+
 import Data.String ( IsString )
 import Data.Typeable ( Typeable )
 import Data.Data ( Data )
 import Data.Maybe ( maybe, fromMaybe )
-import Data.Char ( isSpace )
+import Data.Char ( isSpace, toLower )
 import Data.List ( foldl' )
 
 import Control.Arrow
@@ -29,11 +32,11 @@ fixHyphenation [] = []
 fixHyphenation ('\\':'-':xs) = fixHyphenation xs
 fixHyphenation (x:xs) = x : fixHyphenation xs
 
-parseBibFiles :: [FilePath] -> IO (Either String (IxSet BibEntry))
-parseBibFiles fs = fmap (foldl' Ix.union Ix.empty) . sequence <$> mapM parseBibFile fs
+parseBibFiles :: [FilePath] -> IO (Either String Bibliography)
+parseBibFiles fs = fmap mconcat . sequence <$> mapM parseBibFile fs
 
 -- | Parse bibliography from file
-parseBibFile :: FilePath -> IO (Either String (IxSet BibEntry))
+parseBibFile :: FilePath -> IO (Either String Bibliography)
 parseBibFile path = parseBib path <$> readFile path 
 
 -- | Parse bibliography from file contents; given file path (for parsec info)
@@ -45,9 +48,9 @@ parseBib' path = fixHyphenation >>>
                  show +++ map Bib.lowerCaseFieldNames
 
 -- | Parse bibliography from file contents; given file path (for parsec info)
--- and file contents it retuns either parse error or indexed set fo 'BibEntry'
-parseBib :: FilePath -> String -> Either String (IxSet BibEntry)
-parseBib path = parseBib' path >>> right (map convert >>> Ix.fromList)
+-- and file contents it retuns either parse error or 'Bibliography'
+parseBib :: FilePath -> String -> Either String Bibliography
+parseBib path = parseBib' path >>> right (map convert >>> bib)
   where
     convert Bib.Cons { entryType = t, .. } = BibEntry {..}
       where
@@ -58,7 +61,12 @@ parseBib path = parseBib' path >>> right (map convert >>> Ix.fromList)
         year = Year $ (lookup "year" fields >>= readMaybe)
                <|> (lookup "date" fields >>= parseYear)
                <|> (lookup "issue_date" fields >>= parseYear)
+        keywords = maybe [] parseKeywords (lookup "keywords" fields)
         entries = fields
+    bib bs = Bibliography { database = Ix.fromList bs
+                          , allKeywords = Set.fromList (concatMap keywords bs)
+                          , allAuthors = Set.fromList (concatMap authors bs)
+                          }
 
 -- | we expect that year is last part of date, and it is separated by either
 -- space, comma, or dash
@@ -68,26 +76,35 @@ parseYear = reverse >>>
             reverse >>>
             readMaybe
 
+-- | Parse comma or semicolon separated list of keywords, converts them to
+-- lowercase
+parseKeywords :: String -> [String]
+parseKeywords = pk >>> map trim >>> filter (not . null) >>> map (words >>> unwords) >>> map (map toLower)
+  where
+    pk xs = case break (`elem` ",;") xs of
+              (x, [])   -> [x]
+              (x, _:xs) -> x : pk xs                      
+
 -- | parse @"and"@ separated authors
 parseAuthors :: String -> [String]
-parseAuthors str = case pa (trimR (conv str)) "" of
-    ([], []) -> []
-    (a, [])  -> [trim a]
-    ([], as) -> parseAuthors as
-    (a, as)  -> trim a : parseAuthors as
+parseAuthors = parse >>> map trim >>> filter (not . null) >>> map (words >>> unwords)
   where
-    pa [] acc = (reverse acc, [])
-    pa " and" acc = (reverse acc, [])
-    pa (' ':'a':'n':'d':' ':xs) acc = (reverse acc, ' ':xs)
-    pa (x:xs) acc = pa xs (x:acc)
-
-    -- | convert all whitespace to spaces
-    conv :: String -> String
-    conv = map conv1
+    parse str = case pa (trimR (conv str)) "" of
+        (a, [])  -> [trim a]
+        (a, as)  -> trim a : parseAuthors as
       where
-    conv1 x
-      | isSpace x = ' '
-      | otherwise = x
+        pa [] acc = (reverse acc, [])
+        pa " and" acc = (reverse acc, [])
+        pa (' ':'a':'n':'d':' ':xs) acc = (reverse acc, ' ':xs)
+        pa (x:xs) acc = pa xs (x:acc)
+
+        -- | convert all whitespace to spaces
+        conv :: String -> String
+        conv = map conv1
+          where
+        conv1 x
+          | isSpace x = ' '
+          | otherwise = x
 
 -- | remove tailing and leading whitespace
 trim :: String -> String
@@ -95,12 +112,20 @@ trim = trimR >>> dropWhile isSpace
 
 trimR = reverse >>> dropWhile isSpace >>> reverse
 
-newtype Id = Id String deriving ( IsString, Eq, Ord, Show, Data, Typeable )
-newtype Type = Type String deriving ( IsString, Eq, Ord, Show, Data, Typeable )
-newtype Name = Name String deriving ( IsString, Eq, Ord, Show, Data, Typeable )
-newtype Year = Year (Maybe Int) deriving ( Eq, Ord, Show, Data, Typeable )
-newtype Author = Author String deriving ( IsString, Eq, Ord, Show, Data, Typeable )
-newtype FirstAuthor = FirstAuthor String deriving ( IsString, Eq, Ord, Show, Data, Typeable )
+newtype Id = Id { getId :: String }
+             deriving ( IsString, Eq, Ord, Show, Data, Typeable )
+newtype Type = Type { getType :: String }
+               deriving ( IsString, Eq, Ord, Show, Data, Typeable )
+newtype Name = Name { getName :: String }
+               deriving ( IsString, Eq, Ord, Show, Data, Typeable )
+newtype Year = Year { getYear :: Maybe Int }
+               deriving ( Eq, Ord, Show, Data, Typeable )
+newtype Author = Author { getAuthor ::  String }
+                 deriving ( IsString, Eq, Ord, Show, Data, Typeable )
+newtype FirstAuthor = FirstAuthor { getFirstAuthor :: String }
+                      deriving ( IsString, Eq, Ord, Show, Data, Typeable )
+newtype Keyword = Keyword { getKeyword :: String }
+                  deriving ( IsString, Eq, Ord, Show, Data, Typeable )
 
 data BibEntry = BibEntry
     { entryId   :: Id
@@ -108,6 +133,7 @@ data BibEntry = BibEntry
     , authors   :: [String]
     , name      :: Name
     , year      :: Year
+    , keywords  :: [String]
     , entries   :: [(String, String)]
     } deriving ( Show, Eq, Ord, Data, Typeable )
 
@@ -119,4 +145,19 @@ instance Indexable BibEntry where
               , ixGen (Proxy :: Proxy Name)
               , ixFun $ \BibEntry {..} -> if null authors then [] else [FirstAuthor (head authors)]
               , ixFun $ \BibEntry {..} -> map Author authors
+              , ixFun $ \BibEntry {..} -> map Keyword keywords
               ]
+
+data Bibliography = Bibliography
+    { database    :: IxSet BibEntry
+    , allKeywords :: Set String
+    , allAuthors  :: Set String
+    } deriving ( Show, Eq, Ord, Data, Typeable )
+
+instance Monoid Bibliography where
+    mempty = Bibliography { database = Ix.empty, allKeywords = Set.empty, allAuthors = Set.empty }
+    mappend a b = Bibliography { database = database a `Ix.union` database b
+                               , allAuthors = allAuthors a `Set.union` allAuthors b
+                               , allKeywords = allKeywords a `Set.union` allKeywords b
+                               }
+    mconcat xs = foldl' mappend mempty xs
