@@ -153,7 +153,7 @@ renderBib (BibEntry {..}) = unlines $
     , "[" ++ intercalate ", " links ++ "]" ]
   where
     aut = intercalate ", "
-    nam = getName >>> filter (`notElem` ['{', '}'])
+    nam = getName
 
     book = maybe [] (wrap "*") (lookup "booktitle" entries)
     publisher = maybe [] (wrap "") (lookup "publisher" entries)
@@ -167,10 +167,9 @@ renderBib (BibEntry {..}) = unlines $
     links =
         [ "[bibtex](" ++ path "bib" ++ ")"
         , "[pdf](" ++ path "pdf" ++ ")"
-        ] ++ doi
-    doi = case lookup "doi" entries of
-            Nothing -> []
-            Just x  -> [ "[url](http://dx.doi.org/" ++ x ++ ")" ]
+        ] ++ url
+    url = maybe [] (:[]) $ fmap (\x -> "[url](http://dx.doi.org/" ++ x ++ ")") (lookup "doi" entries)
+                       <|> fmap (\x -> "[url](" ++ x ++ ")") (lookup "url" entries)
 
     wrap x xs = [x ++ filter (`notElem` ['{', '}']) xs ++ x]
 

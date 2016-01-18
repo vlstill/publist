@@ -57,7 +57,7 @@ parseBib path = parseBib' path >>> right (map convert >>> bib)
         entryId = Id identifier
         entryType = Type t
         authors = maybe [] parseAuthors (lookup "author" fields)
-        name = Name $ fromMaybe "" (lookup "title" fields)
+        name = Name $ fromMaybe "" (debrace <$> lookup "title" fields)
         year = Year $ (lookup "year" fields >>= readMaybe)
                <|> (lookup "date" fields >>= parseYear)
                <|> (lookup "issue_date" fields >>= parseYear)
@@ -79,7 +79,7 @@ parseYear = reverse >>>
 -- | Parse comma or semicolon separated list of keywords, converts them to
 -- lowercase
 parseKeywords :: String -> [String]
-parseKeywords = pk >>> map trim >>> filter (not . null) >>> map (words >>> unwords) >>> map (map toLower)
+parseKeywords = pk >>> map trim >>> filter (not . null) >>> map (words >>> unwords >>> map toLower >>> debrace)
   where
     pk xs = case break (`elem` ",;") xs of
               (x, [])   -> [x]
@@ -87,7 +87,7 @@ parseKeywords = pk >>> map trim >>> filter (not . null) >>> map (words >>> unwor
 
 -- | parse @"and"@ separated authors
 parseAuthors :: String -> [String]
-parseAuthors = parse >>> map trim >>> filter (not . null) >>> map (words >>> unwords)
+parseAuthors = parse >>> map trim >>> filter (not . null) >>> map (words >>> unwords >>> debrace)
   where
     parse str = case pa (trimR (conv str)) "" of
         (a, [])  -> [trim a]
@@ -161,3 +161,8 @@ instance Monoid Bibliography where
                                , allKeywords = allKeywords a `Set.union` allKeywords b
                                }
     mconcat xs = foldl' mappend mempty xs
+    
+-- | Remove braces ('{', '}')
+debrace :: String -> String
+debrace = filter (`notElem` ['{', '}'])
+
