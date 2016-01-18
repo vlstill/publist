@@ -70,18 +70,21 @@ runHakyll Bibliography {..} = hakyll $ do
         route idRoute
         compile copyFileCompiler
 
-    createList allKeywords (\k -> database @= Keyword k) ("Keyword: " ++) "keywords/*.md"
-    createList allAuthors (\a -> database @= Author a) id "authors/*.md"
-    createList ["index"] (const database) id "*.md"
+    match "bib/*.bib" $ do
+        compile getResourceBody
 
-    create ["keywords/index.md"] $ do
+    createList allKeywords (\k -> database @= Keyword k) (("Keyword: " ++) . heading) "keywords/*.md"
+    createList allAuthors (\a -> database @= Author a) id "authors/*.md"
+    createList ["index"] (const database) (const "Publications") "*.md"
+
+    bibdep $ create ["keywords/index.md"] $ do
         route $ setExtension "html"
         compile $ makeItem (mklist "keywords" allKeywords) >>=
                   render >>=
                   loadAndApplyTemplate "templates/default.html" (constField "title" "Keyword List" <> defContext) >>=
                   relativizeUrls
 
-    create ["authors/index.md"] $ do
+    bibdep $ create ["authors/index.md"] $ do
         route $ setExtension "html"
         compile $ makeItem (mklist "authors" allAuthors) >>=
                   render >>=
@@ -99,7 +102,7 @@ mklist pathprefix = toList >>> map link >>> unlines
     link x = "*   [" ++ x ++ "](/" ++ pathprefix ++ "/" ++ ident x ++ ".html)"
 
 createList :: Foldable f => f String -> (String -> IxSet BibEntry) -> (String -> String) -> Pattern -> Rules ()
-createList keys getSet toName pat = do
+createList keys getSet toName pat = bibdep $ do
     createMany keys pat $ \a -> do
         route idRoute
         compile $ makeItem (biblist (getSet a))
@@ -108,9 +111,10 @@ createList keys getSet toName pat = do
         route $ setExtension "html"
         compile $ makeItem (biblist (getSet a)) >>=
                   render >>=
-                  loadAndApplyTemplate "templates/default.html" (constField "title" a <> defContext) >>=
+                  loadAndApplyTemplate "templates/default.html" (constField "title" (toName a) <> defContext) >>=
                   relativizeUrls
 
+bibdep r = makePatternDependency "bib/*.bib" >>= \d -> rulesExtraDependencies [d] r
 
 idReplaceExtension :: String -> Identifier -> Identifier
 idReplaceExtension ext = toFilePath >>> flip replaceExtension ext >>> fromFilePath
