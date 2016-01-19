@@ -25,6 +25,7 @@ import           System.IO.Unsafe ( unsafePerformIO )
 import           System.FilePath
 import           System.IO ( hPutStrLn, stderr )
 import           System.Exit
+import           System.Directory ( getDirectoryContents )
 
 import           Control.Monad
 import           Control.Applicative
@@ -38,19 +39,22 @@ import           PubList
 import           Data.IxSet ( IxSet, (@=), groupDescBy, toDescList, Proxy ( Proxy ) )
 import qualified Data.IxSet as Ix ( toList )
 import           Data.Set ( Set )
+import qualified Data.Set as Set ( fromList, member )
 
 
 --------------------------------------------------------------------------------
 main :: IO ()
 main = do
     let bibdir = "bib"
+        pdfdir = "pdf"
+    pdfs <- map (pdfdir </>) . filter ((&&) <$> (/= ".") <*> (/= "..")) <$> getDirectoryContents pdfdir
     files <- map (bibdir </>) <$> getRecursiveContents (pure . (/= ".bib") . takeExtension) bibdir
     bs <- parseBibFiles files
     case bs of
         Right bibs -> do
             hPutStrLn stderr $ "Authors: " ++ intercalate "; " (toList (allAuthors bibs))
             hPutStrLn stderr $ "Keywords: " ++ intercalate "; " (toList (allKeywords bibs))
-            runHakyll bibs
+            runHakyll bibs (Set.fromList pdfs)
         Left emsg  -> do
             hPutStrLn stderr $ unlines
                 [ "Bibliography error: "
@@ -60,8 +64,8 @@ main = do
                 ]
             exitFailure
 
-runHakyll :: Bibliography -> IO ()
-runHakyll Bibliography {..} = hakyll $ do
+runHakyll :: Bibliography -> Set FilePath -> IO ()
+runHakyll Bibliography {..} pdfs = hakyll $ do
 
     match "css/*" $ do
         route   idRoute
@@ -74,9 +78,9 @@ runHakyll Bibliography {..} = hakyll $ do
     match "bib/*.bib" $ do
         compile getResourceBody
 
-    createList allKeywords (\k -> database @= Keyword k) (("Keyword: " ++) . heading) "keywords/*.md"
-    createList allAuthors (\a -> database @= Author a) id "authors/*.md"
-    createList ["index"] (const database) (const "Publications") "*.md"
+    createList allKeywords (\k -> database @= Keyword k) (("Keyword: " ++) . heading) pdfs "keywords/*.md"
+    createList allAuthors (\a -> database @= Author a) id pdfs "authors/*.md"
+    createList ["index"] (const database) (const "Publications") pdfs "*.md"
 
     bibdep $ create ["keywords/index.md"] $ do
         route $ setExtension "html"
@@ -111,15 +115,15 @@ mklist pathprefix = toList >>> map link >>> unlines
   where
     link x = "*   [" ++ x ++ "](/" ++ pathprefix ++ "/" ++ ident x ++ ".html)"
 
-createList :: Foldable f => f String -> (String -> IxSet BibEntry) -> (String -> String) -> Pattern -> Rules ()
-createList keys getSet toName pat = bibdep $ do
+createList :: Foldable f => f String -> (String -> IxSet BibEntry) -> (String -> String) -> Set FilePath -> Pattern -> Rules ()
+createList keys getSet toName pdfs pat = bibdep $ do
     createMany keys pat $ \a -> do
         route idRoute
-        compile $ makeItem (biblist (getSet a))
+        compile $ makeItem (biblist pdfs (getSet a))
 
     createMany keys pat $ \a -> version "html" $ do
         route $ setExtension "html"
-        compile $ makeItem (biblist (getSet a)) >>=
+        compile $ makeItem (biblist pdfs (getSet a)) >>=
                   render >>=
                   loadAndApplyTemplate "templates/default.html" (constField "title" (toName a) <> defContext) >>=
                   relativizeUrls
@@ -131,20 +135,12 @@ idReplaceExtension ext = toFilePath >>> flip replaceExtension ext >>> fromFilePa
 
 render = renderPandocWith defaultHakyllReaderOptions (defaultHakyllWriterOptions { writerHtml5 = True })
 
--- | Render markdown for a keyword
-keyword :: String -> IxSet BibEntry -> String
-keyword k db = biblist (db @= Keyword k) ++ "\n"
-
--- | Render markdown for an author
-author :: String -> IxSet BibEntry -> String
-author k db = biblist (db @= Author k) ++ "\n"
-
 -- | Render bibliography database in markdown, descending by year
-biblist :: IxSet BibEntry -> String
-biblist = groupDescBy >>> map renderYear >>> intercalate "\n\n"
+biblist :: Set FilePath -> IxSet BibEntry -> String
+biblist pdfs = groupDescBy >>> map (renderYear pdfs) >>> intercalate "\n\n"
 
-renderYear :: (Year, [BibEntry]) -> String
-renderYear (Year y, es) = "## " ++ year ++ "\n\n" ++ intercalate "\n\n" (map renderBib (sortBy autsort es))
+renderYear :: Set FilePath -> (Year, [BibEntry]) -> String
+renderYear pdfs (Year y, es) = "## " ++ year ++ "\n\n" ++ intercalate "\n\n" (map (renderBib pdfs) (sortBy autsort es))
   where
     year = case y of
               Just yy -> show yy
@@ -159,8 +155,8 @@ heading = words >>> map fu >>> unwords
     fu (x:xs) = toUpper x : xs
 
 -- | render single 'BibEntry' into markdown
-renderBib :: BibEntry -> String
-renderBib (BibEntry {..}) = unlines $
+renderBib :: Set FilePath -> BibEntry -> String
+renderBib pdfs (BibEntry {..}) = unlines $
     [ aut authors ++ ":"
     , "**" ++ (nam name) ++ "**"
     , intercalate ", " (book ++ publisher ++ year' ++ volume ++ pages) ++ "."
@@ -178,12 +174,10 @@ renderBib (BibEntry {..}) = unlines $
     year' = maybe [] ((:[]) . show) (getYear year)
 
     path ext = "/" ++ ext ++ "/" ++ getId entryId ++ "." ++ ext
-    links =
-        [ "[bibtex](" ++ path "bib" ++ ")"
-        , "[pdf](" ++ path "pdf" ++ ")"
-        ] ++ url
+    links = [ "[bibtex](" ++ path "bib" ++ ")" ] ++ pdf ++ url
     url = maybe [] (:[]) $ fmap (\x -> "[url](http://dx.doi.org/" ++ x ++ ")") (lookup "doi" entries)
                        <|> fmap (\x -> "[url](" ++ x ++ ")") (lookup "url" entries)
+    pdf = let p = path "pdf" in if Set.member p pdfs then ["[pdf](" ++ p ++ ")"] else []
 
     wrap x xs = [x ++ filter (`notElem` ['{', '}']) xs ++ x]
 

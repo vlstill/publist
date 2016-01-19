@@ -7,6 +7,8 @@ build : site
 
 site : site.hs PubList.hs publist.cabal .cabal-sandbox
 	cabal install --force-reinstalls
+	mkdir -p pdf
+	mkdir -p bib
 	touch site
 
 rebuild : site
