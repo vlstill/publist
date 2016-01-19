@@ -36,6 +36,7 @@ import           Hakyll
 
 import           PubList
 import           Data.IxSet ( IxSet, (@=), groupDescBy, toDescList, Proxy ( Proxy ) )
+import qualified Data.IxSet as Ix ( toList )
 import           Data.Set ( Set )
 
 
@@ -91,9 +92,18 @@ runHakyll Bibliography {..} = hakyll $ do
                   loadAndApplyTemplate "templates/default.html" (constField "title" "List of Authors" <> defContext) >>=
                   relativizeUrls
 
+    createBibs database "bib/*.bib"
+
     match "templates/*" $ compile templateCompiler
 
 --------------------------------------------------------------------------------
+
+-- | create bib export for each entry in database
+createBibs :: IxSet BibEntry -> Pattern -> Rules ()
+createBibs db pat = forM_ (Ix.toList db) $ \e@BibEntry {..} -> do
+    bibdep $ create [ fromCapture pat (getId entryId) ] $ do
+        route idRoute
+        compile $ makeItem (formatBib e)
 
 -- | render pandoc list of links from a list of keywords/authors
 mklist :: Foldable f => String -> f String -> String

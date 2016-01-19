@@ -3,9 +3,9 @@
 
 module PubList where
 
-import qualified Text.BibTeX.Entry as Bib
-import qualified Text.BibTeX.Format as Bib
-import qualified Text.BibTeX.Parse as Bib
+import qualified Text.BibTeX.Entry as Bib ( T (..), lowerCaseFieldNames )
+import qualified Text.BibTeX.Format as Bib ( entry )
+import qualified Text.BibTeX.Parse as Bib ( skippingLeadingSpace, file )
 
 import Text.Parsec ( parse, skipMany1 )
 import Text.Parsec.Char ( space )
@@ -166,3 +166,9 @@ instance Monoid Bibliography where
 debrace :: String -> String
 debrace = filter (`notElem` ['{', '}'])
 
+formatBib :: BibEntry -> String
+formatBib BibEntry { entryType = t, ..} = Bib.entry $ Bib.Cons {..}
+  where
+    entryType = getType t
+    identifier = getId entryId
+    fields = entries
