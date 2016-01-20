@@ -22,6 +22,9 @@ import Data.Data ( Data )
 import Data.Maybe ( maybe, fromMaybe )
 import Data.Char ( isSpace, toLower )
 import Data.List ( foldl' )
+import Data.Function ( on )
+import qualified Data.Text as T ( pack )
+import qualified Data.Text.ICU.Normalize as T ( compare )
 
 import Control.Arrow
 import Control.Applicative
@@ -121,11 +124,18 @@ newtype Name        = Name        { getName :: String }
 newtype Year        = Year        { getYear :: Maybe Int }
                       deriving ( Eq, Ord, Show, Data, Typeable )
 data    Author      = Author      { getSurname :: String, getAuthor :: String }
-                      deriving ( Eq, Ord, Show, Data, Typeable )
+                      deriving ( Eq, Show, Data, Typeable )
 newtype FirstAuthor = FirstAuthor { getFirstAuthor :: Author }
                       deriving ( Eq, Ord, Show, Data, Typeable )
 newtype Keyword     = Keyword     { getKeyword :: String }
                       deriving ( IsString, Eq, Ord, Show, Data, Typeable )
+
+instance Ord Author where
+    compare a b = case cmp (getSurname a) (getSurname b) of
+                      EQ -> cmp (getAuthor a) (getAuthor b)
+                      x  -> x
+      where
+        cmp = T.compare [] `on` T.pack
 
 data BibEntry = BibEntry
     { entryId   :: Id
