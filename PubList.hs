@@ -112,20 +112,20 @@ trim = trimR >>> dropWhile isSpace
 
 trimR = reverse >>> dropWhile isSpace >>> reverse
 
-newtype Id = Id { getId :: String }
-             deriving ( IsString, Eq, Ord, Show, Data, Typeable )
-newtype Type = Type { getType :: String }
-               deriving ( IsString, Eq, Ord, Show, Data, Typeable )
-newtype Name = Name { getName :: String }
-               deriving ( IsString, Eq, Ord, Show, Data, Typeable )
-newtype Year = Year { getYear :: Maybe Int }
-               deriving ( Eq, Ord, Show, Data, Typeable )
-newtype Author = Author { getAuthor ::  String }
-                 deriving ( IsString, Eq, Ord, Show, Data, Typeable )
-newtype FirstAuthor = FirstAuthor { getFirstAuthor :: String }
+newtype Id          = Id          { getId :: String }
                       deriving ( IsString, Eq, Ord, Show, Data, Typeable )
-newtype Keyword = Keyword { getKeyword :: String }
-                  deriving ( IsString, Eq, Ord, Show, Data, Typeable )
+newtype Type        = Type        { getType :: String }
+                      deriving ( IsString, Eq, Ord, Show, Data, Typeable )
+newtype Name        = Name        { getName :: String }
+                      deriving ( IsString, Eq, Ord, Show, Data, Typeable )
+newtype Year        = Year        { getYear :: Maybe Int }
+                      deriving ( Eq, Ord, Show, Data, Typeable )
+newtype Author      = Author      { getAuthor ::  String }
+                      deriving ( IsString, Eq, Ord, Show, Data, Typeable )
+data    FirstAuthor = FirstAuthor { getSurname :: String, getFirstAuthor :: String }
+                      deriving ( Eq, Ord, Show, Data, Typeable )
+newtype Keyword     = Keyword     { getKeyword :: String }
+                      deriving ( IsString, Eq, Ord, Show, Data, Typeable )
 
 data BibEntry = BibEntry
     { entryId   :: Id
@@ -143,10 +143,20 @@ instance Indexable BibEntry where
               , ixGen (Proxy :: Proxy Type)
               , ixGen (Proxy :: Proxy Year)
               , ixGen (Proxy :: Proxy Name)
-              , ixFun $ \BibEntry {..} -> if null authors then [] else [FirstAuthor (head authors)]
+              , ixFun $ \BibEntry {..} -> if null authors then [] else [firstAuthor (head authors)]
               , ixFun $ \BibEntry {..} -> map Author authors
               , ixFun $ \BibEntry {..} -> map Keyword keywords
               ]
+      where
+        firstAuthor str = FirstAuthor { getSurname = surname str, getFirstAuthor = str }
+
+-- | return authors surname (the last name before fist comma, or full name if
+-- there is nothing before first comma)
+surname :: String -> String
+surname str = ($ str) $ takeWhile (/= ',') >>> words >>> last' >>> fromMaybe str
+  where
+    last' [] = Nothing
+    last' xs = Just (last xs)
 
 data Bibliography = Bibliography
     { database    :: IxSet BibEntry

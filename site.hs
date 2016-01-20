@@ -37,7 +37,7 @@ import           Hakyll
 
 import           PubList
 import           Data.IxSet ( IxSet, (@=), groupDescBy, toDescList, Proxy ( Proxy ) )
-import qualified Data.IxSet as Ix ( toList )
+import qualified Data.IxSet as Ix ( toList, toAscList )
 import           Data.Set ( Set )
 import qualified Data.Set as Set ( fromList, member )
 
@@ -102,12 +102,18 @@ runHakyll Bibliography {..} pdfs = hakyll $ do
 
 --------------------------------------------------------------------------------
 
--- | create bib export for each entry in database
+-- | create bib export for each entry in database, and uses "all" pattern for
+-- list of all entries (sorthed by first author)
 createBibs :: IxSet BibEntry -> Pattern -> Rules ()
-createBibs db pat = forM_ (Ix.toList db) $ \e@BibEntry {..} -> do
-    bibdep $ create [ fromCapture pat (getId entryId) ] $ do
+createBibs db pat = do
+    bibdep $ create [ fromCapture pat "all" ] $ do
         route idRoute
-        compile $ makeItem (formatBib e)
+        compile $ makeItem (intercalate "\n\n" $ map formatBib (Ix.toAscList (Proxy :: Proxy FirstAuthor) db))
+    forM_ (Ix.toList db) $ \e@BibEntry {..} -> do
+        bibdep $ create [ fromCapture pat (getId entryId) ] $ do
+            route idRoute
+            compile $ makeItem (formatBib e)
+
 
 -- | render pandoc list of links from a list of keywords/authors
 mklist :: Foldable f => String -> f String -> String
