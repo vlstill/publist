@@ -232,8 +232,8 @@ defContext = constField "years" years <> defaultContext
   where
     (year, _, _) = toGregorian $ localDay timestamp
     years = if year == firstyear then show firstyear
-                                 else show firstyear ++ " – " ++ show year
-    firstyear = 2015
+                                 else show firstyear ++ "–" ++ show year
+    firstyear = 2016
 
 timestamp :: LocalTime
 timestamp = unsafePerformIO $ do
