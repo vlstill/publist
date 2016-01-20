@@ -164,13 +164,18 @@ heading = words >>> map fu >>> unwords
 -- | render single 'BibEntry' into markdown
 renderBib :: Set FilePath -> BibEntry -> String
 renderBib pdfs (BibEntry {..}) = unlines $
-    [ aut authors ++ ":"
+    [ aut authors
     , "**" ++ (nam name) ++ "**"
     , intercalate ", " (book ++ publisher ++ year' ++ volume ++ pages) ++ "."
     , "[" ++ intercalate ", " links ++ "]" ]
   where
-    aut = map (getAuthor >>> autLink) >>> intercalate ", "
+    aut = map (getAuthor >>> autLink) >>> autList
     autLink a = "[" ++ a ++ "](/authors/" ++ ident a ++ ".html)"
+    autList :: [String] -> String
+    autList [] = ""
+    autList [x] = x ++ ": "
+    autList [x, y] = x ++ " and " ++ y ++ ": "
+    autList xs = intercalate ", " (init xs) ++ ", and " ++ last xs ++ ": "
     nam = getName
 
     book = maybe [] (wrap "*") (lookup "booktitle" entries)
