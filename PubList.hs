@@ -78,20 +78,20 @@ parseYear = reverse >>>
 
 -- | Parse comma or semicolon separated list of keywords, converts them to
 -- lowercase
-parseKeywords :: String -> [String]
-parseKeywords = pk >>> map trim >>> filter (not . null) >>> map (words >>> unwords >>> map toLower >>> debrace)
+parseKeywords :: String -> [Keyword]
+parseKeywords = pk >>> map trim >>> filter (not . null) >>> map (words >>> unwords >>> map toLower >>> debrace >>> Keyword)
   where
     pk xs = case break (`elem` ",;") xs of
               (x, [])   -> [x]
               (x, _:xs) -> x : pk xs                      
 
 -- | parse @"and"@ separated authors
-parseAuthors :: String -> [String]
-parseAuthors = parse >>> map trim >>> filter (not . null) >>> map (words >>> unwords >>> debrace)
+parseAuthors :: String -> [Author]
+parseAuthors = parse >>> map trim >>> filter (not . null) >>> map (words >>> unwords >>> debrace >>> author)
   where
     parse str = case pa (trimR (conv str)) "" of
         (a, [])  -> [trim a]
-        (a, as)  -> trim a : parseAuthors as
+        (a, as)  -> trim a : parse as
       where
         pa [] acc = (reverse acc, [])
         pa " and" acc = (reverse acc, [])
@@ -120,9 +120,9 @@ newtype Name        = Name        { getName :: String }
                       deriving ( IsString, Eq, Ord, Show, Data, Typeable )
 newtype Year        = Year        { getYear :: Maybe Int }
                       deriving ( Eq, Ord, Show, Data, Typeable )
-newtype Author      = Author      { getAuthor ::  String }
-                      deriving ( IsString, Eq, Ord, Show, Data, Typeable )
-data    FirstAuthor = FirstAuthor { getSurname :: String, getFirstAuthor :: String }
+data    Author      = Author      { getSurname :: String, getAuthor :: String }
+                      deriving ( Eq, Ord, Show, Data, Typeable )
+newtype FirstAuthor = FirstAuthor { getFirstAuthor :: Author }
                       deriving ( Eq, Ord, Show, Data, Typeable )
 newtype Keyword     = Keyword     { getKeyword :: String }
                       deriving ( IsString, Eq, Ord, Show, Data, Typeable )
@@ -130,10 +130,10 @@ newtype Keyword     = Keyword     { getKeyword :: String }
 data BibEntry = BibEntry
     { entryId   :: Id
     , entryType :: Type
-    , authors   :: [String]
+    , authors   :: [Author]
     , name      :: Name
     , year      :: Year
-    , keywords  :: [String]
+    , keywords  :: [Keyword]
     , entries   :: [(String, String)]
     } deriving ( Show, Eq, Ord, Data, Typeable )
 
@@ -143,12 +143,13 @@ instance Indexable BibEntry where
               , ixGen (Proxy :: Proxy Type)
               , ixGen (Proxy :: Proxy Year)
               , ixGen (Proxy :: Proxy Name)
-              , ixFun $ \BibEntry {..} -> if null authors then [] else [firstAuthor (head authors)]
-              , ixFun $ \BibEntry {..} -> map Author authors
-              , ixFun $ \BibEntry {..} -> map Keyword keywords
+              , ixFun $ \BibEntry {..} -> if null authors then [] else [FirstAuthor (head authors)]
+              , ixFun $ \BibEntry {..} -> authors
+              , ixFun $ \BibEntry {..} -> keywords
               ]
-      where
-        firstAuthor str = FirstAuthor { getSurname = surname str, getFirstAuthor = str }
+
+-- | Construct 'Author' from string, using 'surname' to get surname
+author str = Author { getSurname = surname str, getAuthor = str }
 
 -- | return authors surname (the last name before fist comma, or full name if
 -- there is nothing before first comma)
@@ -160,8 +161,8 @@ surname str = ($ str) $ takeWhile (/= ',') >>> words >>> last' >>> fromMaybe str
 
 data Bibliography = Bibliography
     { database    :: IxSet BibEntry
-    , allKeywords :: Set String
-    , allAuthors  :: Set String
+    , allKeywords :: Set Keyword
+    , allAuthors  :: Set Author
     } deriving ( Show, Eq, Ord, Data, Typeable )
 
 instance Monoid Bibliography where

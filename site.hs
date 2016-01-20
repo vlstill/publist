@@ -52,8 +52,8 @@ main = do
     bs <- parseBibFiles files
     case bs of
         Right bibs -> do
-            hPutStrLn stderr $ "Authors: " ++ intercalate "; " (toList (allAuthors bibs))
-            hPutStrLn stderr $ "Keywords: " ++ intercalate "; " (toList (allKeywords bibs))
+            hPutStrLn stderr $ "Authors: " ++ intercalate "; " (map getAuthor (toList (allAuthors bibs)))
+            hPutStrLn stderr $ "Keywords: " ++ intercalate "; " (map getKeyword (toList (allKeywords bibs)))
             runHakyll bibs (Set.fromList pdfs)
         Left emsg  -> do
             hPutStrLn stderr $ unlines
@@ -78,20 +78,21 @@ runHakyll Bibliography {..} pdfs = hakyll $ do
     match "bib/*.bib" $ do
         compile getResourceBody
 
-    createList allKeywords (\k -> database @= Keyword k) (("Keyword: " ++) . heading) pdfs "keywords/*.md"
-    createList allAuthors (\a -> database @= Author a) id pdfs "authors/*.md"
-    createList ["index"] (const database) (const "Publications") pdfs "*.md"
+    createList allKeywords (database @=) getKeyword (("Keyword: " ++) . heading) pdfs "keywords/*.md"
+    createList allAuthors (database @=) getAuthor id pdfs "authors/*.md"
+    createList ["index"] (const database) id (const "Publications") pdfs "*.md"
 
     bibdep $ create ["keywords/index.md"] $ do
         route $ setExtension "html"
-        compile $ makeItem (mklist "keywords" allKeywords) >>=
+        compile $ makeItem (mklist "keywords" (getKeyword <$> toList allKeywords)) >>=
                   render >>=
                   loadAndApplyTemplate "templates/default.html" (constField "title" "Keyword List" <> defContext) >>=
                   relativizeUrls
 
     bibdep $ create ["authors/index.md"] $ do
         route $ setExtension "html"
-        compile $ makeItem (mklist "authors" allAuthors) >>=
+        -- here, toList is important to preserve sort by surname:
+        compile $ makeItem (mklist "authors" (getAuthor <$> toList allAuthors)) >>=
                   render >>=
                   loadAndApplyTemplate "templates/default.html" (constField "title" "List of Authors" <> defContext) >>=
                   relativizeUrls
@@ -121,17 +122,17 @@ mklist pathprefix = toList >>> map link >>> unlines
   where
     link x = "*   [" ++ x ++ "](/" ++ pathprefix ++ "/" ++ ident x ++ ".html)"
 
-createList :: Foldable f => f String -> (String -> IxSet BibEntry) -> (String -> String) -> Set FilePath -> Pattern -> Rules ()
-createList keys getSet toName pdfs pat = bibdep $ do
-    createMany keys pat $ \a -> do
+createList :: Foldable f => f a -> (a -> IxSet BibEntry) -> (a -> String) -> (String -> String)-> Set FilePath -> Pattern -> Rules ()
+createList keys getSet keyToStr toName pdfs pat = bibdep $ do
+    createMany keys keyToStr pat $ \a -> do
         route idRoute
         compile $ makeItem (biblist pdfs (getSet a))
 
-    createMany keys pat $ \a -> version "html" $ do
+    createMany keys keyToStr pat $ \a -> version "html" $ do
         route $ setExtension "html"
         compile $ makeItem (biblist pdfs (getSet a)) >>=
                   render >>=
-                  loadAndApplyTemplate "templates/default.html" (constField "title" (toName a) <> defContext) >>=
+                  loadAndApplyTemplate "templates/default.html" (constField "title" (toName . keyToStr $ a) <> defContext) >>=
                   relativizeUrls
 
 bibdep r = makePatternDependency "bib/*.bib" >>= \d -> rulesExtraDependencies [d] r
@@ -168,7 +169,7 @@ renderBib pdfs (BibEntry {..}) = unlines $
     , intercalate ", " (book ++ publisher ++ year' ++ volume ++ pages) ++ "."
     , "[" ++ intercalate ", " links ++ "]" ]
   where
-    aut = intercalate ", "
+    aut = map getAuthor >>> intercalate ", "
     nam = getName
 
     book = maybe [] (wrap "*") (lookup "booktitle" entries)
@@ -191,8 +192,8 @@ renderBib pdfs (BibEntry {..}) = unlines $
 -- hole in pattern will be filled by values from the string list (after 'ident'
 -- is applied to them), and each time rule callback will get original value
 -- from list as its parameter
-createMany :: Foldable f => f String -> Pattern -> (String -> Rules ()) -> Rules ()
-createMany xs pat rules = forM_ (toList xs) $ \x -> create [fromCapture pat (ident x)] (rules x)
+createMany :: Foldable f => f a -> (a -> String) -> Pattern -> (a -> Rules ()) -> Rules ()
+createMany xs keyToStr pat rules = forM_ (toList xs) $ \x -> create [fromCapture pat (ident (keyToStr x))] (rules x)
 
 -- | compile pandoc, but apply it (on itself) as template first
 pandocTemplateCompiler :: Context String -> Compiler (Item String)
