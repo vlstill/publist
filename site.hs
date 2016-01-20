@@ -169,7 +169,8 @@ renderBib pdfs (BibEntry {..}) = unlines $
     , intercalate ", " (book ++ publisher ++ year' ++ volume ++ pages) ++ "."
     , "[" ++ intercalate ", " links ++ "]" ]
   where
-    aut = map getAuthor >>> intercalate ", "
+    aut = map (getAuthor >>> autLink) >>> intercalate ", "
+    autLink a = "[" ++ a ++ "](/authors/" ++ ident a ++ ".html)"
     nam = getName
 
     book = maybe [] (wrap "*") (lookup "booktitle" entries)
