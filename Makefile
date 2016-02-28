@@ -25,3 +25,5 @@ deploy : build
 
 run : deploy
 	-nohup firefox https://paradise.fi.muni.cz/~xstill < /dev/null > /dev/null 2> /dev/null &
+
+.PHONY: all build site test rebuild deploy run
