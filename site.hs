@@ -47,7 +47,7 @@ main :: IO ()
 main = do
     let bibdir = "bib"
         pdfdir = "pdf"
-    pdfs <- map (pdfdir </>) . filter ((&&) <$> (/= ".") <*> (/= "..")) <$> getDirectoryContents pdfdir
+    pdfs <- map (("/" ++ pdfdir ++ "/") ++) . filter ((&&) <$> (/= ".") <*> (/= "..")) <$> getDirectoryContents pdfdir
     files <- map (bibdir </>) <$> getRecursiveContents (pure . (/= ".bib") . takeExtension) bibdir
     bs <- parseBibFiles files
     case bs of
