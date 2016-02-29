@@ -7,8 +7,8 @@ build : site
 
 site : site.hs PubList.hs publist.cabal .cabal-sandbox
 	cabal install --force-reinstalls
-	mkdir -p pdf
-	mkdir -p bib
+	-mkdir -p pdf
+	-mkdir -p bib
 	touch site
 
 rebuild : site
@@ -18,7 +18,7 @@ rebuild : site
 	cabal sandbox init
 
 test : build
-	rsync -avc --del --progress _site/ antea:public_html/staging
+	rsync -avc --del --progress _site/ antea:public_html/publist
 
 deploy : build
 	rsync -avc --del --progress _site/ antea:public_html --exclude tmp --exclude norway --exclude staging --exclude dev --exclude doc
