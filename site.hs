@@ -54,7 +54,6 @@ main = do
         Right bibs -> do
             hPutStrLn stderr $ "Authors: " ++ intercalate "; " (map getAuthor (toList (allAuthors bibs)))
             hPutStrLn stderr $ "Keywords: " ++ intercalate "; " (map getKeyword (toList (allKeywords bibs)))
-            hPutStrLn stderr $ "PDFs: " ++ intercalate "; " pdfs
             runHakyll bibs (Set.fromList pdfs)
         Left emsg  -> do
             hPutStrLn stderr $ unlines
@@ -191,7 +190,7 @@ renderBib pdfs (BibEntry {..}) = unlines $
     links = [ "[bibtex](" ++ path "bib" ++ ")" ] ++ pdf ++ url
     url = maybe [] (:[]) $ fmap (\x -> "[url](http://dx.doi.org/" ++ x ++ ")") (lookup "doi" entries)
                        <|> fmap (\x -> "[url](" ++ x ++ ")") (lookup "url" entries)
-    pdf = let p = path "pdf" in if Set.member (p ++ ".pdf") pdfs then ["[pdf](pdf/" ++ p ++ ".pdf)"] else []
+    pdf = let p = path "pdf" in if Set.member p pdfs then ["[pdf](pdf/" ++ p ++ ")"] else []
 
     wrap x xs = [x ++ filter (`notElem` ['{', '}']) xs ++ x]
 
