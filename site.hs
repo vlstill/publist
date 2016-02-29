@@ -47,7 +47,7 @@ main :: IO ()
 main = do
     let bibdir = "bib"
         pdfdir = "pdf"
-    pdfs <- map (pdfdir </>) . filter ((&&) <$> (/= ".") <*> (/= "..")) <$> getDirectoryContents pdfdir
+    pdfs <- filter ((&&) <$> (/= ".") <*> (/= "..")) <$> getDirectoryContents pdfdir
     files <- map (bibdir </>) <$> getRecursiveContents (pure . (/= ".bib") . takeExtension) bibdir
     bs <- parseBibFiles files
     case bs of
@@ -190,7 +190,7 @@ renderBib pdfs (BibEntry {..}) = unlines $
     links = [ "[bibtex](" ++ path "bib" ++ ")" ] ++ pdf ++ url
     url = maybe [] (:[]) $ fmap (\x -> "[url](http://dx.doi.org/" ++ x ++ ")") (lookup "doi" entries)
                        <|> fmap (\x -> "[url](" ++ x ++ ")") (lookup "url" entries)
-    pdf = let p = path "pdf" in if Set.member p pdfs then ["[pdf](" ++ p ++ ")"] else []
+    pdf = let p = path "pdf" in if Set.member p pdfs then ["[pdf](pdf/" ++ p ++ ")"] else []
 
     wrap x xs = [x ++ filter (`notElem` ['{', '}']) xs ++ x]
 
