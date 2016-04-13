@@ -26,6 +26,7 @@ import           System.FilePath
 import           System.IO ( hPutStrLn, stderr )
 import           System.Exit
 import           System.Directory ( getDirectoryContents )
+import           System.Environment ( lookupEnv )
 
 import           Control.Monad
 import           Control.Applicative
@@ -43,8 +44,11 @@ import qualified Data.Set as Set ( fromList, member )
 
 
 --------------------------------------------------------------------------------
+
 main :: IO ()
 main = do
+    pagename <- fromMaybe "Publications" <$> lookupEnv "MAIN_PAGE_NAME"
+
     let bibdir = "bib"
         pdfdir = "pdf"
     pdfs <- map (("/" ++ pdfdir ++ "/") ++) . filter ((&&) <$> (/= ".") <*> (/= "..")) <$> getDirectoryContents pdfdir
@@ -54,7 +58,7 @@ main = do
         Right bibs -> do
             hPutStrLn stderr $ "Authors: " ++ intercalate "; " (map getAuthor (toList (allAuthors bibs)))
             hPutStrLn stderr $ "Keywords: " ++ intercalate "; " (map getKeyword (toList (allKeywords bibs)))
-            runHakyll bibs (Set.fromList pdfs)
+            runHakyll bibs (Set.fromList pdfs) pagename
         Left emsg  -> do
             hPutStrLn stderr $ unlines
                 [ "Bibliography error: "
@@ -64,8 +68,8 @@ main = do
                 ]
             exitFailure
 
-runHakyll :: Bibliography -> Set FilePath -> IO ()
-runHakyll Bibliography {..} pdfs = hakyll $ do
+runHakyll :: Bibliography -> Set FilePath -> String -> IO ()
+runHakyll Bibliography {..} pdfs pagename = hakyll $ do
 
     match "css/*" $ do
         route   idRoute
@@ -80,7 +84,7 @@ runHakyll Bibliography {..} pdfs = hakyll $ do
 
     createList allKeywords (database @=) getKeyword (("Keyword: " ++) . heading) pdfs "keywords/*.md"
     createList allAuthors (database @=) getAuthor id pdfs "authors/*.md"
-    createList ["index"] (const database) id (const "Publications") pdfs "*.md"
+    createList ["index"] (const database) id (const pagename) pdfs "*.md"
 
     bibdep $ create ["keywords/index.md"] $ do
         route $ setExtension "html"
