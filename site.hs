@@ -25,7 +25,7 @@ import           System.IO.Unsafe ( unsafePerformIO )
 import           System.FilePath
 import           System.IO ( hPutStrLn, stderr )
 import           System.Exit
-import           System.Directory ( getDirectoryContents )
+import           System.Directory ( getDirectoryContents, doesDirectoryExist )
 import           System.Environment ( lookupEnv )
 
 import           Control.Monad
@@ -52,7 +52,7 @@ main = do
     let bibdir = "bib"
         pdfdir = "pdf"
     pdfs <- map (("/" ++ pdfdir ++ "/") ++) . filter ((&&) <$> (/= ".") <*> (/= "..")) <$> getDirectoryContents pdfdir
-    files <- map (bibdir </>) <$> getRecursiveContents (pure . (/= ".bib") . takeExtension) bibdir
+    files <- map (bibdir </>) <$> getRecursiveContents (fmap not . use) bibdir
     bs <- parseBibFiles files
     case bs of
         Right bibs -> do
@@ -67,6 +67,10 @@ main = do
                 , "Refusing to re-generated pages, please fix your BIBs"
                 ]
             exitFailure
+  where
+    use path
+        | takeExtension path == ".bib" = pure True
+        | otherwise = doesDirectoryExist ("bib" </> path)
 
 runHakyll :: Bibliography -> Set FilePath -> String -> IO ()
 runHakyll Bibliography {..} pdfs pagename = hakyll $ do
