@@ -1,5 +1,5 @@
 
-all : build test
+all : build
 
 
 build : site
