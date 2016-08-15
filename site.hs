@@ -172,8 +172,8 @@ heading = words >>> map fu >>> unwords
 -- | render single 'BibEntry' into markdown
 renderBib :: Set FilePath -> BibEntry -> String
 renderBib pdfs (BibEntry {..}) = unlines $
-    [ aut authors
-    , "**" ++ (nam name) ++ "**, "
+    [ aut authors ++ "\\"
+    , "**" ++ (nam name) ++ "**,\\"
     , intercalate ", " (book ++ publisher ++ year' ++ volume ++ pages) ++ "."
     , "[" ++ intercalate ", " links ++ "]" ]
   where
