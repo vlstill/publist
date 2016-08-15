@@ -155,12 +155,12 @@ biblist :: Set FilePath -> IxSet BibEntry -> String
 biblist pdfs = groupDescBy >>> map (renderYear pdfs) >>> intercalate "\n\n"
 
 renderYear :: Set FilePath -> (Year, [BibEntry]) -> String
-renderYear pdfs (Year y, es) = "## " ++ year ++ "\n\n" ++ intercalate "\n\n" (map (renderBib pdfs) (sortBy autsort es))
+renderYear pdfs (Year y, es) = "## " ++ year ++ "\n\n" ++ intercalate "\n\n" (map (renderBib pdfs) (sortBy namesort es))
   where
     year = case y of
               Just yy -> show yy
               Nothing -> "No Year"
-    autsort = comparing authors
+    namesort = comparing name
 
 -- | capitalize first letters for heading
 heading :: String -> String
