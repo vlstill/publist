@@ -186,7 +186,7 @@ renderBib pdfs (BibEntry {..}) = unlines $
     autList xs = intercalate ", " (init xs) ++ ", and " ++ last xs ++ ": "
     nam = getName
 
-    book = maybe [] (wrap "*") (lookup "booktitle" entries)
+    book = maybe [] (wrap "*") (lookup "booktitle" entries <|> lookup "journal" entries <|> lookup "type" entries)
     publisher = maybe [] (wrap "") (lookup "publisher" entries)
     volume = maybe [] v $ (,) <$> lookup "volume" entries <*> lookup "series" entries
     v :: (String, String) -> [String]
