@@ -195,10 +195,11 @@ renderBib pdfs (BibEntry {..}) = unlines $
     year' = maybe [] ((:[]) . show) (getYear year)
 
     path ext = "/" ++ ext ++ "/" ++ getId entryId ++ "." ++ ext
-    links = [ "[bibtex](" ++ path "bib" ++ ")" ] ++ pdf ++ url
+    links = [ "[bibtex](" ++ path "bib" ++ ")" ] ++ pdf ++ url ++ page
     url = maybe [] (:[]) $ fmap (\x -> "[url](http://dx.doi.org/" ++ x ++ ")") (lookup "doi" entries)
                        <|> fmap (\x -> "[url](" ++ x ++ ")") (lookup "url" entries)
     pdf = let p = path "pdf" in if Set.member p pdfs then ["[pdf](" ++ p ++ ")"] else []
+    page = maybe [] (:[]) $ fmap (\x -> "[paper page](" ++ x ++ ")") (lookup "page" entries)
 
     wrap x xs = [x ++ filter (`notElem` ['{', '}']) xs ++ x]
 
