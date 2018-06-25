@@ -23,6 +23,8 @@ import Data.Maybe ( maybe, fromMaybe )
 import Data.Char ( isSpace, toLower )
 import Data.List ( foldl' )
 import Data.Function ( on )
+import Data.Semigroup ( (<>) )
+import Data.Monoid ( mempty, mappend, mconcat )
 import qualified Data.Text as T ( pack )
 import qualified Data.Text.ICU.Normalize as T ( compare )
 
@@ -175,12 +177,15 @@ data Bibliography = Bibliography
     , allAuthors  :: Set Author
     } deriving ( Show, Eq, Ord, Data, Typeable )
 
+instance Semigroup Bibliography where
+    a <> b = Bibliography { database = database a `Ix.union` database b
+                          , allAuthors = allAuthors a `Set.union` allAuthors b
+                          , allKeywords = allKeywords a `Set.union` allKeywords b
+                          }
+
 instance Monoid Bibliography where
     mempty = Bibliography { database = Ix.empty, allKeywords = Set.empty, allAuthors = Set.empty }
-    mappend a b = Bibliography { database = database a `Ix.union` database b
-                               , allAuthors = allAuthors a `Set.union` allAuthors b
-                               , allKeywords = allKeywords a `Set.union` allKeywords b
-                               }
+    mappend = (<>)
     mconcat xs = foldl' mappend mempty xs
     
 -- | Remove braces ('{', '}')

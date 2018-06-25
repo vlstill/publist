@@ -5,8 +5,9 @@ cabal-version:      >= 1.10
 
 executable site
   main-is:          site.hs
+  other-modules:    PubList
   build-depends:    base >= 4.7
-                  , hakyll >= 4.7
+                  , hakyll == 4.12.*
                   , containers
                   , time
                   , filepath
@@ -14,7 +15,7 @@ executable site
                   , bytestring
                   , pandoc
                   , directory
-                  , ixset >= 1
+                  , ixset >= 1.1
                   , bibtex >= 0.1
                   , parsec >= 3
                   , text

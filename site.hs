@@ -148,7 +148,7 @@ bibdep r = makePatternDependency "bib/*.bib" >>= \d -> rulesExtraDependencies [d
 idReplaceExtension :: String -> Identifier -> Identifier
 idReplaceExtension ext = toFilePath >>> flip replaceExtension ext >>> fromFilePath
 
-render = renderPandocWith defaultHakyllReaderOptions (defaultHakyllWriterOptions { writerHtml5 = True })
+render = renderPandocWith defaultHakyllReaderOptions defaultHakyllWriterOptions
 
 -- | Render bibliography database in markdown, descending by year
 biblist :: Set FilePath -> IxSet BibEntry -> String
@@ -213,9 +213,6 @@ createMany xs keyToStr pat rules = forM_ (toList xs) $ \x -> create [fromCapture
 -- | compile pandoc, but apply it (on itself) as template first
 pandocTemplateCompiler :: Context String -> Compiler (Item String)
 pandocTemplateCompiler ctx = getResourceBody >>= applyAsTemplate ctx >>= render
-  where
-    render = renderPandocWith defaultHakyllReaderOptions
-        (defaultHakyllWriterOptions { writerHtml5 = True })
 
 mapRoute :: (FilePath -> FilePath) -> Routes
 mapRoute f = customRoute (f . toFilePath)
